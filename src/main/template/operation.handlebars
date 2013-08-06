@@ -57,14 +57,18 @@
                         </tr>
                         </thead>
                         <tbody class="operation-status">
-                        
+
                         </tbody>
                     </table>
                     {{/if}}
                     {{#if isReadOnly}}
                     {{else}}
                     <div class='sandbox_header'>
+                        {{#if exampleResponse}}
+                        <input class='submit' name='commit' type='button' value='Show Sample Response' />
+                        {{else}}
                         <input class='submit' name='commit' type='button' value='Try it out!' />
+                        {{/if}}
                         <a href='#' class='response_hider' style='display:none'>Hide Response</a>
                         <img alt='Throbber' class='response_throbber' src='images/throbber.gif' style='display:none' />
                     </div>
