@@ -19,7 +19,7 @@ class OperationView extends Backbone.View
         sampleJSON: @model.responseSampleJSON
         isParam: false
         signature: @model.responseClassSignature
-        
+
       responseSignatureView = new SignatureView({model: signatureModel, tagName: 'div'})
       $('.model-signature', $(@el)).append responseSignatureView.render().el
     else
@@ -48,14 +48,17 @@ class OperationView extends Backbone.View
 
   addParameter: (param) ->
     # Render a parameter
-    paramView = new ParameterView({model: param, tagName: 'tr', readOnly: @model.isReadOnly})
+    if @model.exampleRequest
+      paramView = new ParameterView({model: param, tagName: 'tr', readOnly: @model.isReadOnly, exampleRequest: @model.exampleRequest.params[param.name]})
+    else
+      paramView = new ParameterView({model: param, tagName: 'tr', readOnly: @model.isReadOnly})
     $('.operation-params', $(@el)).append paramView.render().el
 
   addStatusCode: (statusCode) ->
     # Render status codes
     statusCodeView = new StatusCodeView({model: statusCode, tagName: 'tr'})
     $('.operation-status', $(@el)).append statusCodeView.render().el
-  
+
   submitOperation: (e) ->
     e?.preventDefault()
     # Check for errors
@@ -83,7 +86,7 @@ class OperationView extends Backbone.View
       if @model.consumes and @model.consumes.length > 0
         # honor the consumes setting above everything else
         consumes = @model.consumes[0]
-      else 
+      else
         for o in @model.parameters
           if o.paramType == 'form'
             isFormPost = true
@@ -119,10 +122,10 @@ class OperationView extends Backbone.View
           if param.paramType is 'body'
             bodyParam = map[param.name]
 
-      log "bodyParam = " + bodyParam 
+      log "bodyParam = " + bodyParam
 
       headerParams = null
-      invocationUrl = 
+      invocationUrl =
         if @model.supportHeaderParams()
           headerParams = @model.getHeaderParams(map)
           @model.urlify(map, false)
@@ -135,40 +138,48 @@ class OperationView extends Backbone.View
       $(".request_url", $(@el)).html "<pre>" + invocationUrl + "</pre>"
       $(".response_throbber", $(@el)).show()
 
-      obj = 
-        type: @model.httpMethod
-        url: invocationUrl
-        headers: headerParams
-        data: bodyParam
-        contentType: consumes
-        dataType: 'json'
-        processData: false
-        error: (xhr, textStatus, error) =>
-          @showErrorStatus(xhr, textStatus, error)
-        success: (data) =>
-          @showResponse(data)
-        complete: (data) =>
-          @showCompleteStatus(data)
+      if @model.exampleResponse
+        data = {
+          responseText: @model.exampleResponse.body,
+          status: @model.exampleResponse.code
+          getAllResponseHeaders: => JSON.stringify(@model.exampleResponse.headers, null, 2)
+        }
+        @showStatus(data)
+      else
+        obj =
+          type: @model.httpMethod
+          url: invocationUrl
+          headers: headerParams
+          data: bodyParam
+          contentType: consumes
+          dataType: 'json'
+          processData: false
+          error: (xhr, textStatus, error) =>
+            @showErrorStatus(xhr, textStatus, error)
+          success: (data) =>
+            @showResponse(data)
+          complete: (data) =>
+            @showCompleteStatus(data)
 
-      paramContentTypeField = $("td select[name=contentType]", $(@el)).val()
-      if paramContentTypeField
-        obj.contentType = paramContentTypeField
+        paramContentTypeField = $("td select[name=contentType]", $(@el)).val()
+        if paramContentTypeField
+          obj.contentType = paramContentTypeField
 
-      log 'content type = ' + obj.contentType
+        log 'content type = ' + obj.contentType
 
-      if not (obj.data or (obj.type is 'GET' or obj.type is 'DELETE')) and obj.contentType is not "application/x-www-form-urlencoded"
-        obj.contentType = false
+        if not (obj.data or (obj.type is 'GET' or obj.type is 'DELETE')) and obj.contentType is not "application/x-www-form-urlencoded"
+          obj.contentType = false
 
-      log 'content type is now = ' + obj.contentType
+        log 'content type is now = ' + obj.contentType
 
-      responseContentTypeField = $('.content > .content-type > div > select[name=contentType]', $(@el)).val()
-      if responseContentTypeField
-        obj.headers = if obj.headers? then obj.headers else {}
-        obj.headers.accept = responseContentTypeField
-      
-      jQuery.ajax(obj)
-      false
-      # $.getJSON(invocationUrl, (r) => @showResponse(r)).complete((r) => @showCompleteStatus(r)).error (r) => @showErrorStatus(r)
+        responseContentTypeField = $('.content > .content-type > div > select[name=contentType]', $(@el)).val()
+        if responseContentTypeField
+          obj.headers = if obj.headers? then obj.headers else {}
+          obj.headers.accept = responseContentTypeField
+
+        jQuery.ajax(obj)
+        false
+        # $.getJSON(invocationUrl, (r) => @showResponse(r)).complete((r) => @showCompleteStatus(r)).error (r) => @showErrorStatus(r)
 
   # handler for hide response link
   hideResponse: (e) ->
@@ -202,7 +213,7 @@ class OperationView extends Backbone.View
     lines = xml.split('\n')
     indent = 0
     lastType = 'other'
-    # 4 types of tags - single, closing, opening, other (text, doctype, comment) - 4*4 = 16 transitions 
+    # 4 types of tags - single, closing, opening, other (text, doctype, comment) - 4*4 = 16 transitions
     transitions =
       'single->single': 0
       'single->closing': -1
@@ -246,9 +257,9 @@ class OperationView extends Backbone.View
           formatted = formatted.substr(0, formatted.length - 1) + ln + '\n'
         else
           formatted += padding + ln + '\n'
-      
+
     formatted
-    
+
 
   # puts the response data in UI
   showStatus: (data) ->
